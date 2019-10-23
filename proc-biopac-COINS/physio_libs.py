@@ -52,8 +52,10 @@ class PhysData():
         self.rr_idx = np.nan
         self.rr_skew = np.nan
         self.rr_kurtosis = np.nan
+        self.rr_perc = np.nan
         self.hr_skew = np.nan
         self.hr_kurtosis = np.nan
+        self.hr_perc = np.nan
         self.name = ""
 
 class PhysioObject():
@@ -135,8 +137,10 @@ class PhysioObject():
                             self.run[task].resp = signal.decimate(self.run[task].resp,scale,zero_phase=True)
                         self.run[task].hr_idx = signal.find_peaks_cwt(self.run[task].pulse, np.arange(1,35))
                         self.run[task].hr = int(len(self.run[task].hr_idx) / ((len(self.run[task].pulse)/self.target_sampling_rate)/60.0))
-                        self.run[task].rr_idx = signal.find_peaks_cwt(moving_average(self.run[task].resp,50), np.arange(1,70))
+                        #original np.arange(1,70), moving average
+                        self.run[task].rr_idx = signal.find_peaks_cwt(self.run[task].resp, np.arange(10,110))
                         self.run[task].rr = int(len(self.run[task].rr_idx) / ((len(self.run[task].resp)/self.target_sampling_rate)/60.0))
+
 
                         time = np.arange(0, len(self.run[task].pulse) * self.target_sampling_rate, self.target_sampling_rate)
                         
@@ -147,12 +151,38 @@ class PhysioObject():
                         self.run[task].hr_kurtosis = scipy.stats.kurtosis(hr_distances)
                         self.run[task].rr_skew = scipy.stats.skew(rr_distances)
                         self.run[task].rr_kurtosis = scipy.stats.kurtosis(rr_distances)
+
+                        t_hr = 0
+                        good_hr = 0
+                        t_rr = 0
+                        good_rr = 0
+
+                        for i in hr_distances:
+                            ins_HR = i / 60
+                            if ins_HR >= 60 and ins_HR <= 130:
+                                t_hr += 1
+                                good_hr += 1
+                            else:
+                                t_hr += 1
+
+                        self.run[task].hr_perc = good_hr / t_hr
+
+                        for i in rr_distances:
+                            ins_RR = i / 60
+                            if ins_RR >= 15 and ins_RR <= 40:
+                                t_rr += 1
+                                good_rr += 1
+                            else:
+                                t_rr += 1
+
+                        self.run[task].rr_perc = good_rr / t_rr
+
                     except IOError:
                         print('Error processing {}, {}'.format(self.subid, task))
                         f = open(error_folder + '/error_log.txt', 'a')
                         f.write('{} : {} : {} : {}\n'.format(datetime.datetime.now(), 'proc-biopac-coins', self.subid, 'processing error'))
                         f.close()
-                    except ValueError:
+                    except ValueError: 
                         print('Error processing {}, {}'.format(self.subid, task))
                         f = open(error_folder + '/error_log.txt', 'a')
                         f.write('{} : {} : {} : {}\n'.format(datetime.datetime.now(), 'proc-biopac-coins', self.subid, 'processing error - channel missing data'))
@@ -235,6 +265,8 @@ def save_physio_csv(physio_data, output_dir):
         odat[task+'_rr_kurtosis'] = physio_data.run[task].rr_kurtosis
         odat[task+'_hr_skew'] = physio_data.run[task].hr_skew
         odat[task+'_hr_kurtosis'] = physio_data.run[task].hr_kurtosis
+        odat[task+'_hr_%'] = physio_data.run[task].hr_perc
+        odat[task+'_rr_%'] = physio_data.run[task].rr_perc
     df = pd.DataFrame([odat])
     if os.path.isfile(output_csv) is True:
         indf = pd.read_csv(output_csv)
