@@ -102,6 +102,7 @@ class TrackObject:
                         f = open(error_folder + '/error_log.txt', 'a')
                         f.write('{} : {} : {} : {}\n'.format(datetime.datetime.now(), 'proc-tracking-coins', self.subid, 'load error'))
                         f.close()
+                        return
                     print('Processing: {}, {}'.format(self.subid, task))
                     self.native_sample_rate = self.run[task].sampling_rate
                     self.run[task] = downsample(self.run[task], 4)
@@ -113,20 +114,17 @@ class TrackObject:
                         f = open(error_folder + '/error_log.txt', 'a')
                         f.write('{} : {} : {} : {}\n'.format(datetime.datetime.now(), 'proc-tracking-coins', self.subid, 'processing error'))
                         f.close()
+                        return
                     self.run[task] = normalize(self.run[task])
                     self.run[task] = flipy(self.run[task])
                     self.run[task] = downsample(self.run[task], 800)
                     generate_qc(self.run[task])
-                    #except:
-                        #print('Error loading {}, {}'.format(self.subid, task))
-                        #f = open(error_folder + '/error_log.txt', 'a')
-                        #f.write('{} : {} : {} : {}\n'.format(datetime.datetime.now(), 'proc-tracking-coins', self.subid, 'processing error'))
-                        #f.close()
                 elif not os.path.isfile(taskfile) and d[task] != '':
                         print('Error loading {}, {}'.format(self.subid, task))
                         f = open(error_folder + '/error_log.txt', 'a')
                         f.write('{} : {} : {} : {}\n'.format(datetime.datetime.now(), 'proc-tracking-coins', self.subid, 'no json file'))
                         f.close()
+                        return
             self.hasloaded=True
             
         except IOError:
@@ -676,7 +674,7 @@ def generate_qc(data):
     time = time[data.fixs]
     
     total = float(gazex.size)
-    
+ 
     fig, ax = plt.subplots()
     
     center_x = gazex

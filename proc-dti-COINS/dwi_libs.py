@@ -32,6 +32,8 @@ class DtiData:
 		self.rejected = np.nan
 		self.total_count = None
 		self.rejected_count = None
+		self.rejected_nums = []
+		self.corrected_nums = []
 
 class DtiObject:
 
@@ -66,7 +68,7 @@ class DtiObject:
 			dti_dicom = os.path.join(dicom_folder, dicom)
 			dti_nrrd_path = os.path.join(qc_folder, 'dti')
 			if not os.path.exists(dti_nrrd_path):
-				os.mkdir(dti_nrrd_path)
+				os.makedirs(dti_nrrd_path)
 			dti_nrrd = os.path.join(dti_nrrd_path, 'dwi.nrrd')
 			if dicom == '0':
 				dicom = dicom / 2
@@ -81,6 +83,7 @@ class DtiObject:
 
 			try:
 				run_dtiprep(dti_nrrd, self.protocol_template, dti_nrrd_path)
+				pass
 			except:
 				print('{}: DTIPrep run error'.format(self.subid))
 				f = open(error_folder + '/error_log.txt', 'a')
@@ -89,8 +92,11 @@ class DtiObject:
 
 			try:
 				data.fd = run_fsl_qc(bids_file, dti_nrrd_path)
+				rejected_nums, corrected_nums = run_meanfd_qc(data, 3)
+				data.rejected_nums = rejected_nums
+				data.corrected_nums = corrected_nums
 				self.plot_fsl_graphs(data, dti_nrrd_path)
-			except:
+			except IOError:
 				print('{}: FD calc error'.format(self.subid))
 				f = open(error_folder + '/error_log.txt', 'a')
 				f.write('{} : {} : {} : {}\n'.format(datetime.datetime.now(), 'proc-dwi-coins', self.subid, 'Mean FD Calculation Error'))
@@ -98,9 +104,15 @@ class DtiObject:
 
 			try:
 				qc_results = os.path.join(dti_nrrd_path, 'dwi_XMLQCResult.xml')
-				data.rejected_count, data.total_count, data.rejected, data.corrected = parse_dti_qc(qc_results)
+				data.rejected_count, data.total_count, rejected_nums, corrected_nums, data.rejected, data.corrected = parse_dti_qc(qc_results, data)
+				data.rejected_nums.extend(rejected_nums)
+				data.corrected_nums.extend(corrected_nums)
+				if len(data.rejected_nums) > 0:
+					data.rejected_nums = list(set(data.rejected_nums))
+				if len(data.corrected_nums) > 0:
+					data.corrected_nums = list(set(data.corrected_nums))
 				self.plot_dtiprep_graphs(data, dti_nrrd_path)
-			except:
+			except IOError:
 				print('{}: Parse QC error'.format(self.subid))
 				f = open(error_folder + '/error_log.txt', 'a')
 				f.write('{} : {} : {} : {}\n'.format(datetime.datetime.now(), 'proc-dwi-coins', self.subid, 'DTIPrep QC Parse Error'))
@@ -109,13 +121,13 @@ class DtiObject:
 			try:
 				qc_csv = os.path.join(error_folder, 'dti_qc.csv')
 				self.save_qc_csv(data, qc_csv)
-			except:
+			except IOError:
 				print('{}: Save CSV error'.format(self.subid))
 				f = open(error_folder + '/error_log.txt', 'a')
 				f.write('{} : {} : {} : {}\n'.format(datetime.datetime.now(), 'proc-dwi-coins', self.subid, 'Save CSV error'))
 				f.close()
 
-		except:
+		except IOError:
 			print('No diffusion data for any subjects listed')
 			f = open(error_folder + '/error_log.txt', 'a')
 			f.write('{} : {} : {} : {}\n'.format(datetime.datetime.now(), 'proc-dwi-coins', self.subid, 'no diffusion data'))
@@ -182,10 +194,11 @@ class DtiObject:
 		mean_fd = fd.mean()
 		rejected = dti_data.rejected_count
 		total = dti_data.total_count
-		percent_pass = round((float(rejected)/float(total)) * 100, 2)
+		percent_fail = round((float(rejected)/float(total)) * 100, 2)
+		percent_pass = 100 - percent_fail
 
-		line = '{}, {}, {}, {}\n'.format(mean_fd, rejected, total, percent_pass)
-		header = 'mean_fd, rejected_gradients, total_gradients, percent_pass\n'
+		line = '{}, {}, {}, {}, {}\n'.format(self.subid, mean_fd, rejected, total, percent_pass)
+		header = 'subid, mean_fd, rejected_gradients, total_gradients, percent_pass\n'
 
 		if not os.path.exists(output_file):
 			f = open(output_file, 'w')
@@ -197,6 +210,22 @@ class DtiObject:
 			f.write(line)
 			f.close()
 
+def run_meanfd_qc(data, thr):
+	fd = data.fd
+
+	rejected_nums = []
+	corrected_nums = []
+
+	for x in range(len(fd)):
+		if fd[x] > thr:
+			rejected_nums.append(x)
+		else:
+			corrected_nums.append(x)
+
+	return rejected_nums, corrected_nums
+
+		
+
 def convert_to_nrrd(input_file, output_file):
 	cmd = 'DWIConvert -i {} -o {}'.format(input_file, output_file)
 	os.system(cmd)
@@ -205,7 +234,7 @@ def run_dtiprep(input_file, protocol_file, output_dir):
 	cmd = 'DTIPrep --DWINrrdFile {} --xmlProtocol {} --check --outputFolder {}'.format(input_file, protocol_file, output_dir)
 	os.system(cmd)
 
-def parse_dti_qc(input_file):
+def parse_dti_qc(input_file, data):
 	f = open(input_file)
 	lines = f.readlines()
 
@@ -220,26 +249,35 @@ def parse_dti_qc(input_file):
 	corrected_gradients_y = []
 	corrected_gradients_z = []
 
+	rejected_gradients = []
+	corrected_gradients = []
+
 	for index, line in enumerate(lines):
 		if '<entry parameter="gradient_' in line:
+			gradient_num = line.split('_')
+			gradient_num = gradient_num[-1]
+			gradient_num = gradient_num[:4]
+			gradient_num = int(gradient_num)
 			check_line = lines[index+1]
 			gradient_line = lines[index+9]
 			gradient = gradient_line.strip()
 			gradient = gradient.strip('<value>/')
 			gradient = gradient.split(' ')
-			if 'EXCLUDE' in check_line:
+			if 'EXCLUDE' in check_line or gradient_num in data.rejected_nums:
 				rejected += 1
 				total += 1
 				rejected_gradients_x.append(float(gradient[0]))
 				rejected_gradients_y.append(float(gradient[1]))
 				rejected_gradients_z.append(float(gradient[2]))
+				rejected_gradients.append(gradient_num)
 			else:
 				total += 1
 				corrected_gradients_x.append(float(gradient[0]))
 				corrected_gradients_y.append(float(gradient[1]))
 				corrected_gradients_z.append(float(gradient[2]))
+				corrected_gradients.append(gradient_num)
 		
-	return rejected, total, [rejected_gradients_x, rejected_gradients_y, rejected_gradients_z], [corrected_gradients_x, corrected_gradients_y, corrected_gradients_z]
+	return rejected, total, rejected_gradients, corrected_gradients, [rejected_gradients_x, rejected_gradients_y, rejected_gradients_z], [corrected_gradients_x, corrected_gradients_y, corrected_gradients_z]
 
 
 def run_fsl_qc(input_file, output_dir):
