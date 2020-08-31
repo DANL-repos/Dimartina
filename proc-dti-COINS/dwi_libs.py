@@ -48,12 +48,14 @@ class DtiObject:
 		
 		error_folder = infile.split('/')
 		error_folder = '/'.join(error_folder[:-1])
+		
+		source_dir = self.project_dir
 
-		sub_folder = os.path.join(error_folder, self.subid)
+		sub_folder = os.path.join(source_dir, self.subid)
 		dicom_folder = os.path.join(sub_folder, 'originals')
 		qc_folder = os.path.join(sub_folder, 'QC')
 		if not os.path.exists(qc_folder):
-			os.mkdir(qc_folder)
+			os.makedirs(qc_folder)
 
 		bids_file = os.path.join(bids_dir, self.subid, 'dwi', '{}_dir-AP_dwi.nii.gz'.format(self.subid))
 		if not os.path.exists(bids_file) and self.subid[-1].isalpha():
