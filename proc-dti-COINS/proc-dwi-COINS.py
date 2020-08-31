@@ -30,6 +30,7 @@ sublist = [fil.strip() for fil in open(args.subject_list)]
 for sub in sublist:
 	print(sub.upper().strip())
 	dti = dl.DtiObject()
+	dti.project_directory = project_dir
 	dti.subid = sub.strip()
 	dti.protocol_template = args.protocol_template
 	dti.load_data(args.COINS_BIDS, args.bids_dir)
