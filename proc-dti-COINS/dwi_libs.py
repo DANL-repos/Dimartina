@@ -49,7 +49,7 @@ class DtiObject:
 		error_folder = infile.split('/')
 		error_folder = '/'.join(error_folder[:-1])
 		
-		source_dir = self.project_dir
+		source_dir = self.project_directory
 
 		sub_folder = os.path.join(source_dir, self.subid)
 		dicom_folder = os.path.join(sub_folder, 'originals')
