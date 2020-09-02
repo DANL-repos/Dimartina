@@ -31,5 +31,6 @@ for sub in sublist:
 	print(sub.upper().strip())
 	dti = dl.DtiObject()
 	dti.subid = sub.strip()
+	dti.project_directory = project_dir
 	dti.protocol_template = args.protocol_template
 	dti.load_data(args.COINS_BIDS, args.bids_dir)

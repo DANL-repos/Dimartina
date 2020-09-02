@@ -30,8 +30,8 @@ class DtiData:
 		self.subid = ''
 		self.corrected = np.nan
 		self.rejected = np.nan
-		self.total_count = None
-		self.rejected_count = None
+		self.total_count = 0
+		self.rejected_count = 0
 		self.rejected_nums = []
 		self.corrected_nums = []
 
@@ -49,7 +49,9 @@ class DtiObject:
 		error_folder = infile.split('/')
 		error_folder = '/'.join(error_folder[:-1])
 
-		sub_folder = os.path.join(error_folder, self.subid)
+		project_dir = self.project_directory
+
+		sub_folder = os.path.join(project_dir, self.subid)
 		dicom_folder = os.path.join(sub_folder, 'originals')
 		qc_folder = os.path.join(sub_folder, 'QC')
 		if not os.path.exists(qc_folder):
@@ -61,10 +63,10 @@ class DtiObject:
 			
 
 		df = pd.read_csv(infile)
-		df = df.set_index('Scan_Subject_ID')
+		df = df.set_index('SubjectID')
 
 		try:
-			dicom = df['DIFF_137_AP'][self.subid.lstrip('sub-')]
+			dicom = df['DIFF_137_AP'][int(self.subid.lstrip('sub-'))]
 			dti_dicom = os.path.join(dicom_folder, dicom)
 			dti_nrrd_path = os.path.join(qc_folder, 'dti')
 			if not os.path.exists(dti_nrrd_path):
@@ -194,8 +196,12 @@ class DtiObject:
 		mean_fd = fd.mean()
 		rejected = dti_data.rejected_count
 		total = dti_data.total_count
-		percent_fail = round((float(rejected)/float(total)) * 100, 2)
-		percent_pass = 100 - percent_fail
+		if total == 0:
+			percent_fail = 'bad data'
+			percent_pass = 'bad data'
+		else:
+			percent_fail = round((float(rejected)/float(total)) * 100, 2)
+			percent_pass = 100 - percent_fail
 
 		line = '{}, {}, {}, {}, {}\n'.format(self.subid, mean_fd, rejected, total, percent_pass)
 		header = 'subid, mean_fd, rejected_gradients, total_gradients, percent_pass\n'
