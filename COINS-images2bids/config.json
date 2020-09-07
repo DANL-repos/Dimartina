@@ -60,7 +60,16 @@
                 "SeriesDescription": "FACES2",
 				"SeriesNumber": "SNum"
             }
-        },       
+        }, 
+        {
+            "dataType": "func",
+            "modalityLabel": "bold",
+            "customLabels": "task-peer",
+            "criteria": {
+                "SeriesDescription": "PEER",
+				"SeriesNumber": "SNum"
+            }
+        },         
       	{
             "dataType": "fmap",
             "modalityLabel": "magnitude",

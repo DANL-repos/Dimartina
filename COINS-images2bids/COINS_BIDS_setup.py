@@ -69,138 +69,71 @@ if args.subject_list:
     f = open(args.subject_list)
     subject_list = f.read().splitlines()
     f.close()
-    
+
 scan_output_file = os.path.join(args.input_path, 'selected_scans.csv')
 physio_output_file = os.path.join(args.input_path, 'selected_physio.csv')
 tracker_output_file = os.path.join(args.input_path, 'selected_track.csv')
-
-scan3cols = [c for c in df.columns if 'Scan3' in c and '.1' not in c and '.2' not in c and 'Scan_2' not in c and '.3' not in c]
-scan2cols = [c for c in df.columns if 'Scan2' in c and '.1' not in c and '.2' not in c and 'Scan_2' not in c and '.3' not in c]
-scan1cols = [c for c in df.columns if ('Scan2' not in c and 'Scan3' not in c and 'scan' not in c and '.1' not in c and '.2' not in c and 'Scan_2' not in c and '.3' not in c)]
-remainingcols = [c for c in df.columns if ('Scan' not in c and '.1' not in c and '.2' not in c and 'Scan_2' not in c and '.3' not in c)]
-
-df1 = df[scan1cols]
-df1 = df1.replace('~<condSkipped>~', '?')
-df1 = df1.replace(np.nan, '?')
-df2 = df[scan2cols]
-df2 = df2.replace('~<condSkipped>~', '?')
-df2 = df2.replace(np.nan, '?')
-df3 = df[scan3cols]
-df3 = df3.replace('~<condSkipped>~', '?')
-df3 = df3.replace(np.nan, '?')
-
-l2 = len(df2)
-l3 = len(df3)
-
-for x in remainingcols:
-    df2[x] = ['?'] * l2
-    df3[x] = ['?'] * l3
-
-cut = df1['Scan_Scan1_Sub_ID'] != '?'
-df1 = df1[cut]
-
-cut = df2['Scan_Scan2_Subject_ID'] != '?'
-df2 = df2[cut]
-
-cut = df3['Scan_Scan3_Sub_ID'] != '?'
-df3 = df3[cut]
-
-headers1 = list(df1.columns)
-for x in range(len(headers1)):
-    if 'Scan1' in headers1[x]:
-        headers1[x] = headers1[x].replace('Scan1_', '')
-    if 'Scan_Headcoil' in headers1[x]:
-        headers1[x] = 'Scan_Head_Coil'
-    if 'Scan_Sub_ID' in headers1[x]:
-        headers1[x] = 'Scan_Subject_ID'
-    if 'Scan_Samp_Rate' in headers1[x]:
-        headers1[x] = 'Scan_Sampling_Rate'
-    test = headers1[x].split('_')
-    try:
-        if test[1] == 'Run' and len(test[2]) == 1:
-            test[2] = '0' + test[2]
-            test = '_'.join(test)
-            headers1[x] = test
-        elif test[1] == 'Run' and len(test[2]) == 2 and contains_alpha(test[2]):
-            test[2] = '0' + test[2]
-            test = '_'.join(test)
-            headers1[x] = test
-    except IndexError:
-        pass
-df1.columns = headers1
-        
-headers2 = list(df2.columns)
-for x in range(len(headers2)):
-    if 'Scan2' in headers2[x]:
-        headers2[x] = headers2[x].replace('Scan2_', '')
-    if 'Scan_Headcoil' in headers2[x]:
-        headers2[x] = 'Scan_Head_Coil'
-    if 'Scan_Sub_ID' in headers2[x]:
-        headers2[x] = 'Scan_Subject_ID'
-    if 'Scan_Samp_Rate' in headers2[x]:
-        headers2[x] = 'Scan_Sampling_Rate'
-    test = headers2[x].split('_')
-    try:
-        if test[1] == 'Run' and len(test[2]) == 1:
-            test[2] = '0' + test[2]
-            test = '_'.join(test)
-            headers2[x] = test
-        elif test[1] == 'Run' and len(test[2]) == 2 and contains_alpha(test[2]):
-            test[2] = '0' + test[2]
-            test = '_'.join(test)
-            headers2[x] = test
-    except IndexError:
-        pass
-df2.columns = headers2
-        
-headers3 = list(df3.columns)
-for x in range(len(headers3)):
-    if 'Scan3' in headers3[x]:
-        headers3[x] = headers3[x].replace('Scan3_', '')
-    if 'Run' in headers3[x]:
-        headers3[x] = headers3[x][:8] + '_' + headers3[x][8:]
-    if 'Scan_Headcoil' in headers3[x]:
-        headers3[x] = 'Scan_Head_Coil'
-    if 'Scan_Sub_ID' in headers3[x]:
-        headers3[x] = 'Scan_Subject_ID'
-    if 'Scan_Samp_Rate' in headers3[x]:
-        headers3[x] = 'Scan_Sampling_Rate'
-    test = headers3[x].split('_')
-    try:
-        if test[1] == 'Run' and len(test[2]) == 1:
-            test[2] = '0' + test[2]
-            test = '_'.join(test)
-            headers3[x] = test
-        elif test[1] == 'Run' and len(test[2]) == 2 and contains_alpha(test[2]):
-            test[2] = '0' + test[2]
-            test = '_'.join(test)
-            headers3[x] = test
-    except IndexError:
-        pass
     
-df3.columns = headers3
+columns  = list(df.columns)
+data = pd.DataFrame()
+df.index = df['queried_ursi']
+cols = [c for c in df.columns if ('Subject_ID' in c or 'Sub_ID' in c)]
 
-for x, row in df2.iterrows():
-    for i in remainingcols:
-        df2[i][x] = df1[i][x]
-        
-for x, row in df3.iterrows():
-    for i in remainingcols:
-        df3[i][x] = df1[i][x]
-        
-df2 = df2.drop(0, axis=0)
-df2 = df2.drop('Scan_2nd_scan', axis=1)
-df3 = df3.drop(0, axis=0)
-df3 = df3.drop('Scan_3rd_scan', axis=1)
-        
-df = df1.copy()
-df = df.append(df2, sort=True)
-df = df.append(df3, sort=True)
-df = df.reset_index(drop=True) 
+for col in cols:
+    if '.' in col:
+        split = col.split('.')
+        subgroup = '.' + split[-1]
+        column = split[0]
+    else:
+        subgroup = ''
+        column = col
+    split = column.split('_')
+    group = split[0] + '_' + split[1]
+    row_holder = 0
+    
+    section_cols = [c for c in df.columns if group in c and subgroup in c]
+    section_df = df[section_cols]
+    
+    for index, row in section_df.iterrows():
+        if str(row[col]).strip() == '' or str(row[col]) == '~<condSkipped>~':
+            pass
+        else:
+            try:
+                if np.isnan(float(row[col])):
+                    pass
+                else:
+                    if list(section_df.columns)[0] != col:
+                        row = row.drop(labels = [list(section_df.columns)[0]])
+                    row = row.reset_index(drop = True)
+                    data = data.append(row)
+            except ValueError:
+                if list(section_df.columns)[0] != col:
+                    row = row.drop(labels = [list(section_df.columns)[0]])
+                row = row.reset_index(drop = True)
+                data = data.append(row)
+                
+data = data.reset_index(drop = False)
+data = data.replace(np.nan, '')
+data.columns = data.iloc[0, :]
+x = list(data.columns)
+x[0] = 'queried_ursi'
+data.columns = x
 
-runsheet = df.copy()
+drop = []
+for index, row in data.iterrows():
+    if row['SubjectID'][0] == 'S':
+        drop.append(index)
+        
+data = data.drop(labels = drop, axis = 0)
+try:
+    data = data.drop(labels = [''], axis = 1)
+except:
+    pass
+data = data.reset_index(drop = True)
+
+runsheet = data.copy()
 #Get the first row for getting the Scan name columsn later        
-listRow=runsheet.iloc[0,:]
+listRow=runsheet.columns
 
 #Filter the Scan Names and get indices
 scan_names_bool=listRow.str.contains("Run")
@@ -221,9 +154,9 @@ for i in range(physio_names_bool.shape[0]):
 #Store useful scans in list
 coins_bids= pd.DataFrame()
 for sub in range(1,len(runsheet)):
-    subid = runsheet['Scan_Subject_ID'][sub]
+    subid = runsheet['SubjectID'][sub]
     subid2 = 'sub-' + subid
-    if subid != '?' and runsheet['Scan_Run_01'][sub] != '?' and subid2 in subject_list:
+    if subid2 in subject_list:
         success_list=np.array([])      
         for i in range(len(scan_name_indices)):
             success_list=np.append(success_list,runsheet.iloc[sub,int(scan_name_indices[i])])
@@ -282,7 +215,7 @@ for sub in range(1,len(runsheet)):
         sub_info = sub_info.drop([0], axis=0)
         
         sub_info['queried_ursi'] = runsheet['queried_ursi'][sub]
-        sub_info['Scan_Subject_ID'] = runsheet['Scan_Subject_ID'][sub]
+        sub_info['SubjectID'] = runsheet['SubjectID'][sub]
         
         coins_bids = coins_bids.append(sub_info, sort=True)
         coins_bids = coins_bids.replace(np.nan, '0')
@@ -290,9 +223,9 @@ for sub in range(1,len(runsheet)):
         
 physio_bids = pd.DataFrame()
 for sub in range(1,len(runsheet)):
-    subid = runsheet['Scan_Subject_ID'][sub]
+    subid = runsheet['SubjectID'][sub]
     subid2 = 'sub-' + subid
-    if subid != '?' and runsheet['Scan_Run_01'][sub] != '?' and subid2 in subject_list:
+    if subid != '?' and runsheet['Run 01'][sub] != '?' and subid2 in subject_list:
         success_list=np.array([])
         for i in range(len(physio_name_indices)):
             success_list = np.append(success_list, runsheet.iloc[sub, int(physio_name_indices[i])])
@@ -329,25 +262,29 @@ for sub in range(1,len(runsheet)):
         sub_info = sub_info.drop([0], axis=0)
         
         sub_info['queried_ursi'] = runsheet['queried_ursi'][sub]
-        sub_info['Scan_Subject_ID'] = runsheet['Scan_Subject_ID'][sub]
+        sub_info['SubjectID'] = runsheet['SubjectID'][sub]
         
         physio_bids = physio_bids.append(sub_info, sort=True)
         physio_bids = physio_bids.replace(np.nan, '0')
         physio_bids = physio_bids.reset_index(drop=True)
 
-        for column in ['rest1', 'rest2', 'face1', 'face2']:
+        for column in ['rest1', 'rest2', 'face1', 'face2', 'peer']:
             if column not in list(physio_bids.columns):
                 physio_bids[column] = '0'
 
-physio_bids = physio_bids[['Scan_Subject_ID', 'queried_ursi', 'rest1', 'rest2', 'face1', 'face2']]
+physio_bids = physio_bids[['SubjectID', 'queried_ursi', 'rest1', 'rest2', 'face1', 'face2', 'peer']]
+physio_bids.to_csv('test.csv')
 coins_track = physio_bids.copy()
 coins_track = coins_track.drop(labels=['rest1', 'rest2'], axis=1)
+physio_bids = physio_bids.drop(labels=['peer'], axis=1)
 
 for i in range(coins_track.shape[0]):
     if coins_track['face1'][i] != '0':
-        coins_track['face1'][i] = coins_track['Scan_Subject_ID'][i] + '_1'
+        coins_track['face1'][i] = coins_track['SubjectID'][i] + '_1'
     if coins_track['face2'][i] != '0':
-        coins_track['face2'][i] = coins_track['Scan_Subject_ID'][i] + '_2'
+        coins_track['face2'][i] = coins_track['SubjectID'][i] + '_2'
+    if coins_track['peer'][i] != '0':
+        coins_track['peer'][i] = coins_track['SubjectID'][i] + '_peer'
 
 excel=coins_bids.copy()
 excel.head()
@@ -365,7 +302,7 @@ COINS_BIDS=pd.read_csv(scan_output_file)
  
 COINS_dcm2bids=COINS_BIDS
 
-for column in ['AAHead_scout', 'ABCD_T1w_MPR', 'FMRI_DISTORTION_AP', 'FMRI_DISTORTION_PA', 'REST1', 'FACES1', 'FACES2', 'REST2',
+for column in ['AAHead_scout', 'ABCD_T1w_MPR', 'FMRI_DISTORTION_AP', 'FMRI_DISTORTION_PA', 'REST1', 'FACES1', 'FACES2', 'REST2', 'PEER',
 'ABCD_T2w_SPC', 'SpinEcho_Distortion_AP', 'SpinEcho_Distortion_PA', 'DIFF_137_AP']:
     if column not in list(COINS_BIDS.columns):
         COINS_BIDS[column] = '0'
@@ -411,13 +348,13 @@ for i in range(len(COINS_dcm2bids)):
                     del final_lines[index-5:index+4]
     final_lines[-3] = final_lines[-3].replace(',', '')  
     try:
-        f=open(os.path.join(input_path,"sub-"+str(COINS_dcm2bids['Scan_Subject_ID'][i]),str(COINS_dcm2bids['Scan_Subject_ID'][i])+".json"),"w")
+        f=open(os.path.join(input_path,"sub-"+str(COINS_dcm2bids['SubjectID'][i]),str(COINS_dcm2bids['SubjectID'][i])+".json"),"w")
         for item in final_lines:
             f.write(item)
         f.close()
     except IOError:
         f = open(os.path.join(input_path, 'error_log.txt'), 'a')
-        f.write('{} : {} : {} : {}\n'.format(datetime.datetime.now(), 'COINS_BIDS_setup', COINS_dcm2bids['Scan_Subject_ID'][i], 'subject not in source folder'))
+        f.write('{} : {} : {} : {}\n'.format(datetime.datetime.now(), 'COINS_BIDS_setup', COINS_dcm2bids['SubjectID'][i], 'subject not in source folder'))
         f.close()
     
             

@@ -67,6 +67,7 @@ if args.subject_list:
 
 path = fullpaths.split('/')
 
+#subID=coins_bids['SubjectID']
 subID=coins_bids['Scan_Subject_ID']
 for i in range(len(subID)):  
     subid2 = 'sub-' + str(subID[i])

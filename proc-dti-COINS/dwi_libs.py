@@ -63,10 +63,12 @@ class DtiObject:
 			
 
 		df = pd.read_csv(infile)
-		df = df.set_index('SubjectID')
+		#df = df.set_index('SubjectID')
+		df = df.set_index('Scan_Subject_ID')
 
 		try:
-			dicom = df['DIFF_137_AP'][int(self.subid.lstrip('sub-'))]
+			#print(df['DIFF_137_AP'])
+			dicom = df['DIFF_137_AP'][(self.subid.lstrip('sub-'))]
 			dti_dicom = os.path.join(dicom_folder, dicom)
 			dti_nrrd_path = os.path.join(qc_folder, 'dti')
 			if not os.path.exists(dti_nrrd_path):
